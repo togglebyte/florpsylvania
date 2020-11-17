@@ -46,7 +46,7 @@ fn make_resources() -> Resources {
     // Camera
     let camera_pos = WorldPos::new(20_000, 20_000);
     let mut camera = Camera::from_viewport(camera_pos, &viewport);
-    camera.set_limit(1, 1, 1, 1);
+    camera.set_limit(4, 4, 4, 4);
 
     resources.insert(rendering::MainViewport(viewport));
     resources.insert(camera);
@@ -56,9 +56,19 @@ fn make_resources() -> Resources {
     // resources.insert(tx);
     // resources.insert(rx);
 
+    // Tilemap
     let mut tile = tilemap::TilemapMeh::new(tilemap::ThrowAwayThisProvider);
     tile.update(camera_pos, viewport_size);
     resources.insert(tile);
+
+    // Cursor
+
+    resources.insert(player::Cursor {
+        left: '<',
+        right: '>',
+        visible: false,
+        pos: WorldPos::zero(),
+    });
 
     resources
 }
@@ -70,15 +80,15 @@ fn systems() -> Schedule {
     Schedule::builder()
         .add_system(player::move_player_system())
         .add_system(player::track_player_system())
+        .add_system(player::move_cursor_system())
         // .add_system(net::net_recv_system())
-        
         // Adding pixels to the buffers
         .add_system(stats::show_stats_system())
         .add_system(rendering::world_to_screen_system())
         .add_system(rendering::draw_tilemap_system())
+        .add_system(rendering::draw_cursor_system())
         .add_system(rendering::draw_pixels_system())
         .add_system(rendering::draw_border_system())
-
         // Rendering should be the last system
         .add_system(rendering::render_system())
         .build()
@@ -133,6 +143,15 @@ pub fn run() {
                     resources
                         .get_mut::<Input>()
                         .map(|mut inpt| inpt.insert(Input::DOWN));
+                }
+                KeyCode::Char('s') => {
+                    resources
+                        .get_mut::<player::Cursor>()
+                        .zip(resources.get::<Camera>())
+                        .map(|(mut cur, cam)| {
+                            cur.visible = !cur.visible;
+                            cur.pos = cam.position;
+                        });
                 }
                 _ => {}
             },

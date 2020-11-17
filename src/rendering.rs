@@ -3,7 +3,7 @@ use legion::world::SubWorld;
 use tinybit::widgets::Border;
 use tinybit::{Camera, Color, Pixel, Renderer, ScreenPos, StdoutTarget, Viewport, WorldPos};
 
-use crate::player::Player;
+use crate::player::{Cursor, Player};
 use crate::stats::StatsViewport;
 use crate::tilemap::{Tile, TilemapMeh};
 use crate::Rend;
@@ -38,20 +38,32 @@ pub fn draw_tilemap(
     #[resource] cam: &Camera,
     #[resource] viewport: &mut MainViewport,
 ) {
-    tilemap
-        .tiles
-        .iter()
-        .for_each(|tile| {
-            let pixel = Pixel::new(tile.glyph, cam.to_screen(tile.pos), tile.color);
-            viewport.0.draw_pixel(pixel);
-        });
-        
+    tilemap.tiles.iter().for_each(|tile| {
+        let pixel = Pixel::new(tile.glyph, cam.to_screen(tile.pos), tile.color);
+        viewport.0.draw_pixel(pixel);
+    });
 }
 
 #[system]
 pub fn draw_border(#[resource] viewport: &mut MainViewport) {
     let border = Border::new("╭─╮│╯─╰│".into(), Some(Color::Blue));
     viewport.0.draw_widget(border, ScreenPos::zero());
+}
+
+#[system]
+pub fn draw_cursor(
+    #[resource] viewport: &mut MainViewport,
+    #[resource] cam: &Camera,
+    #[resource] cursor: &Cursor,
+) {
+    if !cursor.visible {
+        return;
+    }
+
+    let l_pixel = Pixel::new(cursor.left, cam.to_screen(WorldPos::new(cursor.pos.x - 1, cursor.pos.y)), None);
+    let r_pixel = Pixel::new(cursor.right, cam.to_screen(WorldPos::new(cursor.pos.x + 1, cursor.pos.y)), None);
+    viewport.0.draw_pixel(l_pixel);
+    viewport.0.draw_pixel(r_pixel);
 }
 
 #[system]
