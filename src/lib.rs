@@ -1,4 +1,4 @@
-use legion::{IntoQuery, Read, Resources, Schedule, World, Entity};
+use legion::{Entity, IntoQuery, Read, Resources, Schedule, World};
 use std::sync::mpsc;
 
 use tinybit::events::{events, Event, KeyCode, KeyEvent};
@@ -6,9 +6,9 @@ use tinybit::{
     term_size, Camera, Renderer, ScreenPos, ScreenSize, StdoutTarget, Viewport, WorldPos, WorldSize,
 };
 
+mod combat;
 mod input;
 mod message;
-mod combat;
 mod npc;
 mod player;
 mod rendering;
@@ -16,12 +16,12 @@ mod stats;
 mod tilemap;
 mod unit;
 
+use combat::add_combat_systems;
 use input::Input;
-use unit::Unit;
-use player::{Cursor, Player, add_player_systems, show_hide_cursor};
+use player::{add_player_systems, show_hide_cursor, Cursor, Player};
 use rendering::add_rendering_systems;
 use stats::add_stats_systems;
-use combat::add_combat_systems;
+use unit::Unit;
 
 pub type Rend = Renderer<StdoutTarget>;
 
@@ -31,7 +31,7 @@ macro_rules! some_or_ret {
             Some(val) => val,
             None => return,
         }
-    }
+    };
 }
 
 // -----------------------------------------------------------------------------
@@ -57,7 +57,7 @@ fn make_resources() -> Resources {
 
     // Main viewport
     let viewport_size = ScreenSize::new(80, 20);
-    let viewport = Viewport::new(ScreenPos::new(0, 4), viewport_size);
+    let viewport = Viewport::new(ScreenPos::new(0, 7), viewport_size);
 
     // Camera
     let camera_pos = WorldPos::zero();
@@ -66,11 +66,6 @@ fn make_resources() -> Resources {
 
     resources.insert(rendering::MainViewport(viewport));
     resources.insert(camera);
-
-    // Rx / Tx
-    // let (tx, rx): (net::Tx, net::Rx) = mpsc::channel();
-    // resources.insert(tx);
-    // resources.insert(rx);
 
     // Tilemap
     let mut tile = tilemap::TilemapMeh::new(tilemap::ThrowAwayThisProvider);
@@ -118,23 +113,23 @@ pub fn run() {
         stats::Hp(19),
         combat::Weapon {
             damage: 3,
-            range: 5,
+            range: 3,
             name: "Gun".to_string(),
-        }
+        },
     ));
 
     world.push((
         npc::Npc,
         Unit,
         rendering::Glyph('E'),
-        WorldPos::new(10.0, 2.0),
+        WorldPos::new(2.0, 2.0),
         ScreenPos::new(0, 0),
         stats::Hp(19),
         combat::Weapon {
             damage: 1,
             range: 4,
             name: "Another gun".to_string(),
-        }
+        },
     ));
 
     // Resources
@@ -182,13 +177,14 @@ pub fn run() {
                     resources.get_mut::<player::Cursor>().map(|mut cur| {
                         if cur.visible {
                             // Find target under cursor
-                            let (player_ent, target_ent) = {
+                            let (player_ent, target_ent, target_pos) = {
                                 let target = <(&WorldPos, &Unit, Entity)>::query()
                                     .iter(&world)
-                                    .map(|(_, _, e)| e)
+                                    .filter(|(pos, _, e)| **pos == cur.pos)
+                                    .map(|(pos, _, e)| (pos, e))
                                     .next();
 
-                                let target = some_or_ret!(target);
+                                let (target_pos, target) = some_or_ret!(target);
 
                                 // Find the player entity
                                 let player_ent = <(&Player, Entity)>::query()
@@ -198,11 +194,11 @@ pub fn run() {
 
                                 let player_ent = some_or_ret!(player_ent);
 
-                                (*player_ent, *target)
+                                (*player_ent, *target, *target_pos)
                             };
 
                             cur.visible = false;
-                            combat::attack_target(&mut world, player_ent, target_ent);
+                            combat::attack_target(&mut world, player_ent, target_ent, target_pos);
                         }
                     });
                 }
