@@ -1,14 +1,28 @@
-use legion::*;
+use legion::systems::Builder;
+use legion::{system, IntoQuery, Resources, World};
 use tinybit::{Camera, WorldPos};
 
 use crate::input::Input;
 use crate::message::Message;
 // use crate::net::Tx;
 
-#[derive(Debug)]
-pub struct Player(pub u8);
+pub fn show_hide_cursor(world: &World, resources: &Resources) {
+    let player_pos = <(&Player, &WorldPos)>::query()
+        .iter(world)
+        .map(|(_, p)| p)
+        .next()
+        .expect("No player?");
 
-#[derive(Debug)] 
+    resources.get_mut::<Cursor>().map(|mut cur| {
+        cur.visible = !cur.visible;
+        cur.pos = *player_pos;
+    });
+}
+
+// -----------------------------------------------------------------------------
+//     - Resources -
+// -----------------------------------------------------------------------------
+#[derive(Debug)]
 pub struct Cursor {
     pub left: char,
     pub right: char,
@@ -16,8 +30,18 @@ pub struct Cursor {
     pub visible: bool,
 }
 
+// -----------------------------------------------------------------------------
+//     - Components -
+// -----------------------------------------------------------------------------
+#[derive(Debug)]
+pub struct Player(pub u8);
+
+// -----------------------------------------------------------------------------
+//     - Systems -
+// -----------------------------------------------------------------------------
+
 #[system(for_each)]
-pub fn move_player(
+fn move_player(
     #[resource] input: &mut Input,
     // #[resource] tx: &mut Tx,
     #[resource] cursor: &Cursor,
@@ -33,16 +57,16 @@ pub fn move_player(
     }
 
     if input.contains(Input::LEFT) {
-        pos.x -= 1;
+        pos.x -= 1.0;
     }
     if input.contains(Input::RIGHT) {
-        pos.x += 1;
+        pos.x += 1.0;
     }
     if input.contains(Input::UP) {
-        pos.y -= 1;
+        pos.y -= 1.0;
     }
     if input.contains(Input::DOWN) {
-        pos.y += 1;
+        pos.y += 1.0;
     }
 
     input.clear();
@@ -52,12 +76,16 @@ pub fn move_player(
 }
 
 #[system(for_each)]
-pub fn track_player(#[resource] camera: &mut Camera, player: &Player, pos: &mut WorldPos) {
+fn track_player(#[resource] camera: &mut Camera, player: &Player, pos: &mut WorldPos) {
     camera.track(*pos);
 }
 
 #[system]
-pub fn move_cursor(#[resource] camera: &mut Camera, #[resource] cursor: &mut Cursor, #[resource] input: &mut Input) {
+fn move_cursor(
+    #[resource] camera: &mut Camera,
+    #[resource] cursor: &mut Cursor,
+    #[resource] input: &mut Input,
+) {
     if !cursor.visible {
         return;
     }
@@ -67,17 +95,24 @@ pub fn move_cursor(#[resource] camera: &mut Camera, #[resource] cursor: &mut Cur
     }
 
     if input.contains(Input::LEFT) {
-        cursor.pos.x -= 1;
+        cursor.pos.x -= 1.0;
     }
     if input.contains(Input::RIGHT) {
-        cursor.pos.x += 1;
+        cursor.pos.x += 1.0;
     }
     if input.contains(Input::UP) {
-        cursor.pos.y -= 1;
+        cursor.pos.y -= 1.0;
     }
     if input.contains(Input::DOWN) {
-        cursor.pos.y += 1;
+        cursor.pos.y += 1.0;
     }
 
     input.clear();
+}
+
+pub fn add_player_systems(builder: &mut Builder) {
+    builder
+        .add_system(move_player_system())
+        .add_system(track_player_system())
+        .add_system(move_cursor_system());
 }

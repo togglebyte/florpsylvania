@@ -1,4 +1,4 @@
-use legion::{Resources, Schedule, World};
+use legion::{IntoQuery, Read, Resources, Schedule, World, Entity};
 use std::sync::mpsc;
 
 use tinybit::events::{events, Event, KeyCode, KeyEvent};
@@ -8,15 +8,31 @@ use tinybit::{
 
 mod input;
 mod message;
-// mod net;
+mod combat;
+mod npc;
 mod player;
 mod rendering;
 mod stats;
 mod tilemap;
+mod unit;
 
 use input::Input;
+use unit::Unit;
+use player::{Cursor, Player, add_player_systems, show_hide_cursor};
+use rendering::add_rendering_systems;
+use stats::add_stats_systems;
+use combat::add_combat_systems;
 
 pub type Rend = Renderer<StdoutTarget>;
+
+macro_rules! some_or_ret {
+    ($ex:expr) => {
+        match $ex {
+            Some(val) => val,
+            None => return,
+        }
+    }
+}
 
 // -----------------------------------------------------------------------------
 //     - Resources -
@@ -44,7 +60,7 @@ fn make_resources() -> Resources {
     let viewport = Viewport::new(ScreenPos::new(0, 4), viewport_size);
 
     // Camera
-    let camera_pos = WorldPos::new(20_000, 20_000);
+    let camera_pos = WorldPos::zero();
     let mut camera = Camera::from_viewport(camera_pos, &viewport);
     camera.set_limit(4, 4, 4, 4);
 
@@ -62,13 +78,15 @@ fn make_resources() -> Resources {
     resources.insert(tile);
 
     // Cursor
-
-    resources.insert(player::Cursor {
-        left: '<',
-        right: '>',
+    resources.insert(Cursor {
+        left: '(',
+        right: ')',
         visible: false,
         pos: WorldPos::zero(),
     });
+
+    // Combat latency
+    resources.insert(combat::MockLatency::new());
 
     resources
 }
@@ -77,21 +95,14 @@ fn make_resources() -> Resources {
 //     - Systems -
 // -----------------------------------------------------------------------------
 fn systems() -> Schedule {
-    Schedule::builder()
-        .add_system(player::move_player_system())
-        .add_system(player::track_player_system())
-        .add_system(player::move_cursor_system())
-        // .add_system(net::net_recv_system())
-        // Adding pixels to the buffers
-        .add_system(stats::show_stats_system())
-        .add_system(rendering::world_to_screen_system())
-        .add_system(rendering::draw_tilemap_system())
-        .add_system(rendering::draw_cursor_system())
-        .add_system(rendering::draw_pixels_system())
-        .add_system(rendering::draw_border_system())
-        // Rendering should be the last system
-        .add_system(rendering::render_system())
-        .build()
+    let mut builder = Schedule::builder();
+    add_player_systems(&mut builder);
+    add_stats_systems(&mut builder);
+    add_combat_systems(&mut builder);
+
+    // Rendering last
+    add_rendering_systems(&mut builder);
+    builder.build()
 }
 
 pub fn run() {
@@ -99,11 +110,31 @@ pub fn run() {
     let mut world = World::default();
 
     world.push((
-        player::Player(0),
+        Player(0),
+        Unit,
         rendering::Glyph('@'),
-        WorldPos::new(20_000, 20_000),
+        WorldPos::zero(),
         ScreenPos::new(0, 0),
         stats::Hp(19),
+        combat::Weapon {
+            damage: 3,
+            range: 5,
+            name: "Gun".to_string(),
+        }
+    ));
+
+    world.push((
+        npc::Npc,
+        Unit,
+        rendering::Glyph('E'),
+        WorldPos::new(10.0, 2.0),
+        ScreenPos::new(0, 0),
+        stats::Hp(19),
+        combat::Weapon {
+            damage: 1,
+            range: 4,
+            name: "Another gun".to_string(),
+        }
     ));
 
     // Resources
@@ -145,13 +176,35 @@ pub fn run() {
                         .map(|mut inpt| inpt.insert(Input::DOWN));
                 }
                 KeyCode::Char('s') => {
-                    resources
-                        .get_mut::<player::Cursor>()
-                        .zip(resources.get::<Camera>())
-                        .map(|(mut cur, cam)| {
-                            cur.visible = !cur.visible;
-                            cur.pos = cam.position;
-                        });
+                    show_hide_cursor(&world, &resources);
+                }
+                KeyCode::Char('a') => {
+                    resources.get_mut::<player::Cursor>().map(|mut cur| {
+                        if cur.visible {
+                            // Find target under cursor
+                            let (player_ent, target_ent) = {
+                                let target = <(&WorldPos, &Unit, Entity)>::query()
+                                    .iter(&world)
+                                    .map(|(_, _, e)| e)
+                                    .next();
+
+                                let target = some_or_ret!(target);
+
+                                // Find the player entity
+                                let player_ent = <(&Player, Entity)>::query()
+                                    .iter(&world)
+                                    .next()
+                                    .map(|(_, e)| e);
+
+                                let player_ent = some_or_ret!(player_ent);
+
+                                (*player_ent, *target)
+                            };
+
+                            cur.visible = false;
+                            combat::attack_target(&mut world, player_ent, target_ent);
+                        }
+                    });
                 }
                 _ => {}
             },

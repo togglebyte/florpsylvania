@@ -1,3 +1,4 @@
 use tinybit::WorldPos;
 
-pub struct UnitPos(pub WorldPos);
+#[derive(Debug)]
+pub struct Unit;

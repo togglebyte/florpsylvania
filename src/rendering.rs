@@ -1,9 +1,10 @@
 use legion::system;
+use legion::systems::Builder;
 use legion::world::SubWorld;
 use tinybit::widgets::Border;
 use tinybit::{Camera, Color, Pixel, Renderer, ScreenPos, StdoutTarget, Viewport, WorldPos};
 
-use crate::player::{Cursor, Player};
+use crate::player::Cursor;
 use crate::stats::StatsViewport;
 use crate::tilemap::{Tile, TilemapMeh};
 use crate::Rend;
@@ -14,7 +15,7 @@ pub struct MainViewport(pub Viewport);
 pub struct Glyph(pub char);
 
 #[system(par_for_each)]
-pub fn world_to_screen(
+fn world_to_screen(
     #[resource] camera: &Camera,
     world_pos: &WorldPos,
     screen_pos: &mut ScreenPos,
@@ -23,7 +24,7 @@ pub fn world_to_screen(
 }
 
 #[system(for_each)]
-pub fn draw_pixels(
+fn draw_pixels(
     #[resource] viewport: &mut MainViewport,
     #[resource] cam: &Camera,
     pos: &ScreenPos,
@@ -33,7 +34,7 @@ pub fn draw_pixels(
 }
 
 #[system]
-pub fn draw_tilemap(
+fn draw_tilemap(
     #[resource] tilemap: &mut TilemapMeh,
     #[resource] cam: &Camera,
     #[resource] viewport: &mut MainViewport,
@@ -45,13 +46,13 @@ pub fn draw_tilemap(
 }
 
 #[system]
-pub fn draw_border(#[resource] viewport: &mut MainViewport) {
+fn draw_border(#[resource] viewport: &mut MainViewport) {
     let border = Border::new("╭─╮│╯─╰│".into(), Some(Color::Blue));
     viewport.0.draw_widget(border, ScreenPos::zero());
 }
 
 #[system]
-pub fn draw_cursor(
+fn draw_cursor(
     #[resource] viewport: &mut MainViewport,
     #[resource] cam: &Camera,
     #[resource] cursor: &Cursor,
@@ -60,18 +61,28 @@ pub fn draw_cursor(
         return;
     }
 
-    let l_pixel = Pixel::new(cursor.left, cam.to_screen(WorldPos::new(cursor.pos.x - 1, cursor.pos.y)), None);
-    let r_pixel = Pixel::new(cursor.right, cam.to_screen(WorldPos::new(cursor.pos.x + 1, cursor.pos.y)), None);
+    let l_pixel = Pixel::new(cursor.left, cam.to_screen(WorldPos::new(cursor.pos.x - 1.0, cursor.pos.y)), None);
+    let r_pixel = Pixel::new(cursor.right, cam.to_screen(WorldPos::new(cursor.pos.x + 1.0, cursor.pos.y)), None);
     viewport.0.draw_pixel(l_pixel);
     viewport.0.draw_pixel(r_pixel);
 }
 
 #[system]
-pub fn render(
+fn render(
     #[resource] renderer: &mut Rend,
     #[resource] main_viewport: &mut MainViewport,
     #[resource] stats_viewport: &mut StatsViewport,
 ) {
     renderer.render(&mut main_viewport.0);
     renderer.render(&mut stats_viewport.0);
+}
+
+pub fn add_rendering_systems(builder: &mut Builder) {
+    builder.add_system(world_to_screen_system())
+    .add_system(draw_tilemap_system())
+    .add_system(draw_cursor_system())
+    .add_system(draw_pixels_system())
+    .add_system(draw_border_system())
+    // Rendering should be the last system
+    .add_system(render_system());
 }
