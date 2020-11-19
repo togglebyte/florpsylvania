@@ -1,4 +1,4 @@
 use tinybit::WorldPos;
 
 #[derive(Debug)]
-pub struct Unit;
+pub struct Unit(usize);

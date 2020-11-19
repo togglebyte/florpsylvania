@@ -5,9 +5,6 @@ use legion::world::SubWorld;
 use legion::{system, Entity, IntoQuery, World};
 use tinybit::WorldPos;
 
-#[derive(Debug)]
-pub struct Nonsense;
-
 pub fn attack_target(world: &mut World, attacker: Entity, target: Entity, target_pos: WorldPos) {
     if let Some(mut entry) = world.entry(attacker) {
         entry.add_component(Target {
