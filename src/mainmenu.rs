@@ -1,20 +1,14 @@
-use legion::{system, Resources, Schedule, World};
-use tinybit::{term_size, Renderer, ScreenPos, ScreenSize, StdoutTarget, Viewport};
-use tinybit::widgets::Text;
+use legion::{system, Resources, Schedule};
+use tinybit::{term_size, ScreenPos, ScreenSize, Viewport};
+use tinybit::widgets::{Border, Text};
 use tinybit::events::{Event, KeyCode, KeyEvent};
 
 use crate::state::{State, Transition};
-use crate::world::GameState;
+use crate::account::SignIn;
 use crate::{NextState, Rend};
 
 #[derive(Debug, Copy, Clone, PartialEq, Hash, Eq)]
 pub struct MainMenu;
-
-impl From<MainMenu> for State {
-    fn from(m: MainMenu) -> State {
-        State::MainMenu(m)
-    }
-}
 
 impl MainMenu {
     pub fn schedule(resources: &mut Resources) -> Schedule {
@@ -22,6 +16,7 @@ impl MainMenu {
             max_index: 1,
             selected: 0,
         });
+
         let mut schedule = Schedule::builder();
         schedule.add_system(select_menu_entry_system());
         schedule.add_system(draw_menu_system());
@@ -29,25 +24,12 @@ impl MainMenu {
 
         let (width, height) = term_size().expect("Failed to get term size");
 
-        let viewport_size = ScreenSize::new(width, height);
-        let viewport = Viewport::new(ScreenPos::new(0, 0), viewport_size);
+        let viewport_size = ScreenSize::new(width - 4, height - 4);
+        let viewport = Viewport::new(ScreenPos::new(2, 2), viewport_size);
         resources.insert(MainMenuViewport(viewport));
 
         schedule.build()
     }
-
-    // pub fn exec(
-    //     world: &mut World,
-    //     resources: &mut Resources,
-    //     event: Event,
-    // ) -> Transition {
-    //     self.0.execute(world, resources);
-    //     match resources.remove::<Transition>() {
-    //         Some(t) => t,
-    //         None => Transition::Empty
-    //     }
-    // }
-
 }
 
 // -----------------------------------------------------------------------------
@@ -100,7 +82,7 @@ fn select_menu_entry(
         }
         KeyEvent {code: KeyCode::Enter, .. } => {
             let transition = match menu_selection.selected {
-                0 => Transition::Swap(State::Game(GameState)),
+                0 => Transition::Push(State::SignIn(SignIn)),
                 1 => Transition::Quit,
                 _ => unreachable!(),
             };
@@ -120,21 +102,24 @@ fn draw_menu(
     let (start_text, quit_text) = match menu_selection.selected {
         0 => {
             (
-                "> Start".to_string(),
+                "> Sign in".to_string(),
                 "  Quit".to_string()
             )
         }
         1 => {
             (
-                "  Start".to_string(),
+                "  Sign in".to_string(),
                 "> Quit".to_string()
             )
         }
         _ => return,
     };
 
-    viewport.0.draw_widget(Text(start_text, None), ScreenPos::new(5, 3));
-    viewport.0.draw_widget(Text(quit_text, None), ScreenPos::new(5, 5));
+    viewport.0.draw_widget(Border::new("╔═╗║╝═╚║".to_string(), None), ScreenPos::zero());
+    viewport.0.draw_widget(Text(start_text, None), ScreenPos::new(viewport.0.size.width / 2 - 7, viewport.0.size.height / 2 - 1));
+    viewport.0.draw_widget(Text(quit_text, None), ScreenPos::new(viewport.0.size.width / 2 - 7, viewport.0.size.height / 2 + 1));
+
+    viewport.0.draw_widget(Text("Some title here!".to_string(), None), ScreenPos::new(2, 2));
 }
 
 #[system]

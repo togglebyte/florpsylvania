@@ -1,4 +1,4 @@
-use legion::{Resources, World};
+use legion::{Resources, World, Schedule};
 use tinybit::events::Event;
 
 use crate::account::SignIn;
@@ -9,9 +9,19 @@ use crate::inventory::Inventory;
 #[derive(Debug, Copy, Clone, PartialEq, Hash, Eq)]
 pub enum State {
     MainMenu(MainMenu),
-    // SignIn(SignIn),
+    SignIn(SignIn),
     // Inventory(Inventory),
     Game(GameState),
+}
+
+impl State {
+    pub fn schedule(&self, world: &mut World, resources: &mut Resources) -> Schedule {
+        match self {
+            Self::MainMenu(_) => MainMenu::schedule(resources),
+            Self::SignIn(_) => SignIn::schedule(resources),
+            Self::Game(_) => GameState::schedule(world, resources),
+        }
+    }
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Hash, Eq)]

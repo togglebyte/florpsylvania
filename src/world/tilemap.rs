@@ -4,6 +4,10 @@ pub type TilemapMeh = Tilemap<ThrowAwayThisProvider>;
 
 pub struct ThrowAwayThisProvider;
 
+pub(super) fn make_rubbish_tilemap() -> TilemapMeh {
+    Tilemap::new(ThrowAwayThisProvider)
+}
+
 impl MapSource for ThrowAwayThisProvider {
     fn get_region(&self, pos: WorldPos, size: ScreenSize) -> Vec<Tile> {
         let mut tiles = Vec::new();
@@ -36,7 +40,7 @@ impl Tile {
     }
 }
 
-trait MapSource {
+pub trait MapSource {
     fn get_region(&self, pos: WorldPos, size: ScreenSize) -> Vec<Tile>;
 }
 

@@ -1,23 +1,7 @@
 use legion::systems::Builder;
-use legion::{system, IntoQuery, Resources, World};
+use legion::system;
 use tinybit::{Camera, WorldPos};
-
-use crate::input::Input;
-use crate::message::Message;
-// use crate::net::Tx;
-
-pub fn show_hide_cursor(world: &World, resources: &Resources) {
-    let player_pos = <(&Player, &WorldPos)>::query()
-        .iter(world)
-        .map(|(_, p)| p)
-        .next()
-        .expect("No player?");
-
-    resources.get_mut::<Cursor>().map(|mut cur| {
-        cur.visible = !cur.visible;
-        cur.pos = *player_pos;
-    });
-}
+use tinybit::events::{Event, KeyCode, KeyEvent};
 
 // -----------------------------------------------------------------------------
 //     - Resources -
@@ -42,72 +26,83 @@ pub struct Player(pub u8);
 
 #[system(for_each)]
 fn move_player(
-    #[resource] input: &mut Input,
-    // #[resource] tx: &mut Tx,
+    #[resource] event: &mut Event,
     #[resource] cursor: &Cursor,
-    player: &Player,
+    _: &Player,
     pos: &mut WorldPos,
 ) {
-    if input.is_empty() {
-        return;
-    }
+    let key_ev = match event {
+        Event::Key(k) => k,
+        _ => return,
+    };
 
     if cursor.visible {
         return;
     }
 
-    if input.contains(Input::LEFT) {
-        pos.x -= 1.0;
+    match key_ev {
+        KeyEvent {code: KeyCode::Left, .. } => {
+            pos.x -= 1.0;
+        }
+        KeyEvent {code: KeyCode::Right, .. } => {
+            pos.x += 1.0;
+        }
+        KeyEvent {code: KeyCode::Up, .. } => {
+            pos.y -= 1.0;
+        }
+        KeyEvent {code: KeyCode::Down, .. } => {
+            pos.y += 1.0;
+        }
+        _ => return,
     }
-    if input.contains(Input::RIGHT) {
-        pos.x += 1.0;
-    }
-    if input.contains(Input::UP) {
-        pos.y -= 1.0;
-    }
-    if input.contains(Input::DOWN) {
-        pos.y += 1.0;
-    }
-
-    input.clear();
 
     // Send player position to the server
     // let _ = tx.send(Message::PlayerPos(*pos));
 }
 
 #[system(for_each)]
-fn track_player(#[resource] camera: &mut Camera, player: &Player, pos: &mut WorldPos) {
+fn track_player(#[resource] camera: &mut Camera, _: &Player, pos: &mut WorldPos) {
     camera.track(*pos);
 }
 
-#[system]
+#[system(for_each)]
 fn move_cursor(
-    #[resource] camera: &mut Camera,
     #[resource] cursor: &mut Cursor,
-    #[resource] input: &mut Input,
+    #[resource] event: &mut Event,
+    player_pos: &WorldPos,
+    _: &Player,
 ) {
+    let key_ev = match event {
+        Event::Key(k) => k,
+        _ => return,
+    };
+
     if !cursor.visible {
+        if let  KeyEvent {code: KeyCode::Char('s'), .. } = key_ev {
+            cursor.pos = *player_pos;
+            cursor.visible  = true;
+        }
         return;
     }
 
-    if input.is_empty() {
-        return;
+    match key_ev {
+        KeyEvent {code: KeyCode::Left, .. } => {
+            cursor.pos.x -= 1.0;
+        }
+        KeyEvent {code: KeyCode::Right, .. } => {
+            cursor.pos.x += 1.0;
+        }
+        KeyEvent {code: KeyCode::Up, .. } => {
+            cursor.pos.y -= 1.0;
+        }
+        KeyEvent {code: KeyCode::Down, .. } => {
+            cursor.pos.y += 1.0;
+        }
+        KeyEvent {code: KeyCode::Char('a'), .. } => {
+            unimplemented!("attack");
+        }
+        _ => return,
     }
-
-    if input.contains(Input::LEFT) {
-        cursor.pos.x -= 1.0;
-    }
-    if input.contains(Input::RIGHT) {
-        cursor.pos.x += 1.0;
-    }
-    if input.contains(Input::UP) {
-        cursor.pos.y -= 1.0;
-    }
-    if input.contains(Input::DOWN) {
-        cursor.pos.y += 1.0;
-    }
-
-    input.clear();
 }
 
 pub fn add_player_systems(builder: &mut Builder) {
