@@ -11,6 +11,7 @@ mod inventory;
 mod mainmenu;
 mod state;
 mod world;
+mod ui;
 
 use mainmenu::MainMenu;
 use state::{State, Transition};
@@ -82,6 +83,10 @@ pub fn run() {
                 }
                 Transition::Push(new_state) => {
                     state_stack.push(State::from(new_state));
+                    if !schedules.contains_key(&new_state) {
+                        let sched = new_state.schedule(&mut world, &mut resources);
+                        schedules.insert(new_state, sched);
+                    }
                 }
             }
 
