@@ -18,14 +18,22 @@ impl SignIn {
         let viewport = Viewport::new(ScreenPos::new(2, 2), viewport_size);
 
         resources.insert(SignInViewport(viewport));
-        resources.insert(UsernameInput(TextField::new(None)));
+
+        // Username
+        let mut username = UsernameInput(TextField::new(None));
+        username.0.focus = true;
+        username.0.max_length = Some(30);
+        resources.insert(username);
+
+        // Password
         let mut password = TextField::new(None);
         password.password = true;
         resources.insert(PasswordInput(password));
 
+        // Systems
         let mut schedule = Schedule::builder();
         schedule.add_system(render_system());
-        schedule.add_system(draw_nonsense_system());
+        schedule.add_system(draw_input_fields_system());
         schedule.add_system(input_fields_system());
         schedule.build()
     }
@@ -35,7 +43,6 @@ impl SignIn {
 //     - Resources -
 // -----------------------------------------------------------------------------
 struct SignInViewport(Viewport);
-
 struct UsernameInput(TextField);
 struct PasswordInput(TextField);
 
@@ -58,7 +65,13 @@ fn input_fields(
         KeyEvent {
             code: KeyCode::Tab, ..
         } => {
-            // Choose next input
+            if username.0.focus {
+                username.0.focus = false;
+                password.0.focus = true;
+            } else if password.0.focus {
+                password.0.focus = false;
+                username.0.focus = true;
+            }
         }
         KeyEvent {
             code: KeyCode::Enter,
@@ -77,7 +90,7 @@ fn input_fields(
 }
 
 #[system]
-fn draw_nonsense(
+fn draw_input_fields(
     #[resource] viewport: &mut SignInViewport,
     #[resource] username: &mut UsernameInput,
     #[resource] password: &mut PasswordInput,
