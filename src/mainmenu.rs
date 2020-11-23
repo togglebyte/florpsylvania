@@ -1,10 +1,10 @@
 use legion::{system, Resources, Schedule};
-use tinybit::{term_size, ScreenPos, ScreenSize, Viewport};
-use tinybit::widgets::{Border, Text};
 use tinybit::events::{Event, KeyCode, KeyEvent};
+use tinybit::widgets::{Border, Text};
+use tinybit::{term_size, ScreenPos, ScreenSize, Viewport};
 
-use crate::state::{State, Transition};
 use crate::account::SignIn;
+use crate::state::{State, Transition};
 use crate::{NextState, Rend};
 
 #[derive(Debug, Copy, Clone, PartialEq, Hash, Eq)]
@@ -74,13 +74,21 @@ fn select_menu_entry(
     };
 
     match key_ev {
-        KeyEvent {code: KeyCode::Up, .. } => {
+        KeyEvent {
+            code: KeyCode::Up, ..
+        } => {
             menu_selection.next();
         }
-        KeyEvent {code: KeyCode::Down, .. } => {
+        KeyEvent {
+            code: KeyCode::Down,
+            ..
+        } => {
             menu_selection.prev();
         }
-        KeyEvent {code: KeyCode::Enter, .. } => {
+        KeyEvent {
+            code: KeyCode::Enter,
+            ..
+        } => {
             let transition = match menu_selection.selected {
                 0 => Transition::Push(State::SignIn(SignIn)),
                 1 => Transition::Quit,
@@ -100,32 +108,39 @@ fn draw_menu(
     #[resource] viewport: &mut MainMenuViewport,
 ) {
     let (start_text, quit_text) = match menu_selection.selected {
-        0 => {
-            (
-                "> Sign in".to_string(),
-                "  Quit".to_string()
-            )
-        }
-        1 => {
-            (
-                "  Sign in".to_string(),
-                "> Quit".to_string()
-            )
-        }
+        0 => ("> Sign in".to_string(), "  Quit".to_string()),
+        1 => ("  Sign in".to_string(), "> Quit".to_string()),
         _ => return,
     };
 
-    viewport.0.draw_widget(Border::new("╔═╗║╝═╚║".to_string(), None), ScreenPos::zero());
-    viewport.0.draw_widget(Text(start_text, None), ScreenPos::new(viewport.0.size.width / 2 - 7, viewport.0.size.height / 2 - 1));
-    viewport.0.draw_widget(Text(quit_text, None), ScreenPos::new(viewport.0.size.width / 2 - 7, viewport.0.size.height / 2 + 1));
+    viewport.0.draw_widget(
+        &Border::new("╔═╗║╝═╚║".to_string(), None, None),
+        ScreenPos::zero(),
+    );
 
-    viewport.0.draw_widget(Text("Some title here!".to_string(), None), ScreenPos::new(2, 2));
+    viewport.0.draw_widget(
+        &Text(start_text, None, None),
+        ScreenPos::new(
+            viewport.0.size.width / 2 - 7,
+            viewport.0.size.height / 2 - 1,
+        ),
+    );
+
+    viewport.0.draw_widget(
+        &Text(quit_text, None, None),
+        ScreenPos::new(
+            viewport.0.size.width / 2 - 7,
+            viewport.0.size.height / 2 + 1,
+        ),
+    );
+
+    viewport.0.draw_widget(
+        &Text("Some title here!".to_string(), None, None),
+        ScreenPos::new(2, 2),
+    );
 }
 
 #[system]
-fn render_main_menu(
-    #[resource] viewport: &mut MainMenuViewport,
-    #[resource] renderer: &mut Rend,
-) {
+fn render_main_menu(#[resource] viewport: &mut MainMenuViewport, #[resource] renderer: &mut Rend) {
     renderer.render(&mut viewport.0);
 }

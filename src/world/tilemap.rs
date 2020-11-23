@@ -14,12 +14,17 @@ impl MapSource for ThrowAwayThisProvider {
 
         let start_x = (pos.x - size.width as f32 / 2.0) as isize;
         let start_y = (pos.y - size.height as f32 / 2.0) as isize;
-        let end_x   = (pos.x + size.width as f32 / 2.0) as isize;
-        let end_y   = (pos.y + size.height as f32 / 2.0) as isize;
+        let end_x = (pos.x + size.width as f32 / 2.0) as isize;
+        let end_y = (pos.y + size.height as f32 / 2.0) as isize;
 
         for x in start_x..=end_x {
             for y in start_y..=end_y {
-                tiles.push(Tile::new('.', WorldPos::new(x as f32, y as f32), None));
+                tiles.push(Tile::new(
+                    '.',
+                    WorldPos::new(x as f32, y as f32),
+                    None,
+                    None,
+                ));
             }
         }
 
@@ -31,12 +36,23 @@ impl MapSource for ThrowAwayThisProvider {
 pub struct Tile {
     pub glyph: char,
     pub pos: WorldPos,
-    pub color: Option<Color>,
+    pub fg_color: Option<Color>,
+    pub bg_color: Option<Color>,
 }
 
 impl Tile {
-    pub fn new(glyph: char, pos: WorldPos, color: Option<Color>) -> Self {
-        Self { glyph, pos, color }
+    pub fn new(
+        glyph: char,
+        pos: WorldPos,
+        fg_color: Option<Color>,
+        bg_color: Option<Color>,
+    ) -> Self {
+        Self {
+            glyph,
+            pos,
+            fg_color,
+            bg_color,
+        }
     }
 }
 

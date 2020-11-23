@@ -1,97 +1,108 @@
-use std::collections::HashMap;
 use legion::{Resources, Schedule, World};
+use std::collections::HashMap;
 
-use tinybit::events::{events, Event};
+use tinybit::events::events;
 use tinybit::{Renderer, StdoutTarget};
 
-mod player;
-mod stats;
 mod account;
 mod inventory;
 mod mainmenu;
+mod player;
 mod state;
-mod world;
+mod stats;
 mod ui;
+mod world;
 
 use mainmenu::MainMenu;
-use state::{State, Transition};
-use world::GameState;
+use state::{State, StateStack, Transition};
 
-mod pretendserver;
+// mod pretendserver;
 
 pub type Rend = Renderer<StdoutTarget>;
-
 pub type NextState = Option<Transition>;
 
-pub fn run() {
-    // Start pretend server
-    pretendserver::serve();
-
+fn make_resources() -> Resources {
     let mut resources = Resources::default();
-    let mut world = World::default();
-    let mut net_schedule = Schedule::builder().build();
-
-    // Schedules
-    let mut schedules = HashMap::<State, Schedule>::new();
-    schedules.insert(State::MainMenu(MainMenu), MainMenu::schedule(&mut resources));
-
-    let mut state_stack = vec![State::MainMenu(MainMenu)];
 
     // Renderer
     let stdout_renderer = StdoutTarget::new().expect("Failed to enter raw mode");
     let renderer = Renderer::new(stdout_renderer);
     resources.insert(renderer);
 
-    // States 
     resources.insert::<NextState>(None);
 
+    resources
+}
+
+// -----------------------------------------------------------------------------
+//     - Schedules -
+// -----------------------------------------------------------------------------
+struct Schedules {
+    schedules: HashMap<State, Schedule>,
+}
+
+impl Schedules {
+    fn new(resources: &mut Resources) -> Self {
+        let mut schedules = HashMap::<State, Schedule>::new();
+        schedules.insert(
+            State::MainMenu(MainMenu),
+            MainMenu::schedule(resources),
+        );
+        Self { schedules }
+    }
+
+    fn ensure_exists(&mut self, state: State, world: &mut World, resources: &mut Resources) {
+        if !self.schedules.contains_key(&state) {
+            let sched = state.schedule(world, resources);
+            self.schedules.insert(state, sched);
+        }
+    }
+
+    fn exec(&mut self, state: State, world: &mut World, resources: &mut Resources) {
+        match self.schedules.get_mut(&state) {
+            Some(systems) => systems.execute(world, resources),
+            None => panic!("System not registered"),
+        }
+    }
+}
+
+// -----------------------------------------------------------------------------
+//     - Run -
+// -----------------------------------------------------------------------------
+pub fn run() {
+    // Start pretend server
+    // pretendserver::serve();
+
+    let mut resources = make_resources();
+    let mut world = World::default();
+    let mut schedules = Schedules::new(&mut resources);
+    let mut state_stack = StateStack::new();
+
     for event in events(20) {
-        if let Event::Tick = event {
-            net_schedule.execute(&mut world, &mut resources);
-        }
-
         resources.insert(event);
+        let state = state_stack.top();
+        schedules.exec(state, &mut world, &mut resources);
+        let transition = resources.get::<NextState>().map(|t| *t).flatten();
+        let transition = match transition {
+            Some(t) => t,
+            None => continue,
+        };
 
-        // Execute current state systems
-        let current_state = state_stack.last().unwrap();
-        match schedules.get_mut(current_state) {
-            Some(systems) => systems.execute(&mut world, &mut resources),
-            None => {
-                eprintln!("System note registered");
-                break;
+        match transition {
+            Transition::Quit => break,
+            Transition::Pop => state_stack.pop(),
+            Transition::Swap(new_state) => {
+                state_stack.pop();
+                state_stack.push(State::from(new_state));
+                schedules.ensure_exists(new_state, &mut world, &mut resources);
+            }
+            Transition::Push(new_state) => {
+                state_stack.push(State::from(new_state));
+                schedules.ensure_exists(new_state, &mut world, &mut resources);
             }
         }
 
-        // Transition to next state
-        let maybe_state = resources.get_mut::<NextState>().map(|t| *t);
-
-        if let Some(transition) = maybe_state.flatten() {
-            resources.insert::<NextState>(None);
-
-            match transition {
-                Transition::Quit => break,
-                Transition::Swap(new_state) => {
-                    state_stack.pop();
-                    state_stack.push(State::from(new_state));
-                    if !schedules.contains_key(&new_state) {
-                        let sched = new_state.schedule(&mut world, &mut resources);
-                        schedules.insert(new_state, sched);
-                    }
-                }
-                Transition::Pop => {
-                    state_stack.pop();
-                }
-                Transition::Push(new_state) => {
-                    state_stack.push(State::from(new_state));
-                    if !schedules.contains_key(&new_state) {
-                        let sched = new_state.schedule(&mut world, &mut resources);
-                        schedules.insert(new_state, sched);
-                    }
-                }
-            }
-
-            // Clear render
-            resources.get_mut::<Rend>().map(|mut r| r.clear());
-        }
+        resources.insert::<NextState>(None);
+        resources.get_mut::<Rend>().map(|mut r| r.clear());
     }
 }

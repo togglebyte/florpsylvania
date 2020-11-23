@@ -1,10 +1,13 @@
 use legion::{Resources, World, Schedule};
-use tinybit::events::Event;
 
 use crate::account::SignIn;
 use crate::world::GameState;
 use crate::mainmenu::MainMenu;
-use crate::inventory::Inventory;
+// use crate::inventory::Inventory;
+
+// -----------------------------------------------------------------------------
+//     - State -
+// -----------------------------------------------------------------------------
 
 #[derive(Debug, Copy, Clone, PartialEq, Hash, Eq)]
 pub enum State {
@@ -24,6 +27,9 @@ impl State {
     }
 }
 
+// -----------------------------------------------------------------------------
+//     - Transitions -
+// -----------------------------------------------------------------------------
 #[derive(Debug, Copy, Clone, PartialEq, Hash, Eq)]
 pub enum Transition {
     Pop,
@@ -32,13 +38,32 @@ pub enum Transition {
     Quit,
 }
 
-// impl State {
-//     pub fn exec(&mut self, world: &mut World, resources: &mut Resources, event: Event) -> Transition {
-//         match self {
-//             State::MainMenu(state) => state.exec(world, resources, event),
-//             State::SignIn(state) => state.exec(world, resources, event),
-//             State::Inventory(state) => state.exec(world, resources, event),
-//             State::Game(state) => state.exec(world, resources, event),
-//         }
-//     }
-// }
+// -----------------------------------------------------------------------------
+//     - State stack -
+// -----------------------------------------------------------------------------
+pub struct StateStack {
+    states: Vec<State>,
+}
+
+impl StateStack {
+    pub fn new() -> Self {
+        let states = vec![
+            State::MainMenu(MainMenu),
+        ];
+
+        Self { states }
+    }
+
+    pub fn top(&self) -> State {
+        *self.states.last().expect("This should never be empty")
+    }
+
+    pub fn pop(&mut self) {
+        let _ = self.states.pop();
+    }
+
+    pub fn push(&mut self, state: State) {
+        self.states.push(state)
+    }
+}
+

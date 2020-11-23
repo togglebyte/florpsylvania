@@ -123,15 +123,15 @@ fn draw_tilemap(
     #[resource] viewport: &mut GameViewport,
 ) {
     tilemap.tiles.iter().for_each(|tile| {
-        let pixel = Pixel::new(tile.glyph, cam.to_screen(tile.pos), tile.color);
+        let pixel = Pixel::new(tile.glyph, cam.to_screen(tile.pos), tile.fg_color, tile.bg_color);
         viewport.0.draw_pixel(pixel);
     });
 }
 
 #[system]
 fn draw_border(#[resource] viewport: &mut GameViewport) {
-    let border = Border::new("╭─╮│╯─╰│".into(), Some(Color::Blue));
-    viewport.0.draw_widget(border, ScreenPos::zero());
+    let border = Border::new("╭─╮│╯─╰│".into(), Some(Color::Blue), None);
+    viewport.0.draw_widget(&border, ScreenPos::zero());
 }
 
 #[system]
@@ -148,10 +148,12 @@ fn draw_cursor(
         cursor.left,
         cam.to_screen(WorldPos::new(cursor.pos.x - 1.0, cursor.pos.y)),
         None,
+        None,
     );
     let r_pixel = Pixel::new(
         cursor.right,
         cam.to_screen(WorldPos::new(cursor.pos.x + 1.0, cursor.pos.y)),
+        None,
         None,
     );
     viewport.0.draw_pixel(l_pixel);

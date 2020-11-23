@@ -74,7 +74,7 @@ impl Widget for TextField {
                     (x as u16, c)
                 }
             })
-            .map(|(x, c)| Pixel::new(c, ScreenPos::new(x, 0), self.color))
+            .map(|(x, c)| Pixel::new(c, ScreenPos::new(x, 0), self.color, None))
             .collect()
     }
 }

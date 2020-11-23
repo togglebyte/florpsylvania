@@ -1,11 +1,11 @@
-use legion::{system, Resources, Schedule, World};
+use legion::{system, Resources, Schedule};
 use tinybit::events::{Event, KeyCode, KeyEvent};
-use tinybit::{term_size, Renderer, ScreenPos, ScreenSize, StdoutTarget, Viewport};
+use tinybit::widgets::Border;
+use tinybit::{term_size, ScreenPos, ScreenSize, Viewport};
 
 use crate::state::Transition;
-use crate::state::State;
-use crate::{NextState, Rend};
 use crate::ui::TextField;
+use crate::{NextState, Rend};
 
 #[derive(Debug, Copy, Clone, PartialEq, Hash, Eq)]
 pub struct SignIn;
@@ -25,6 +25,7 @@ impl SignIn {
 
         let mut schedule = Schedule::builder();
         schedule.add_system(render_system());
+        schedule.add_system(draw_nonsense_system());
         schedule.add_system(input_fields_system());
         schedule.build()
     }
@@ -48,30 +49,54 @@ fn input_fields(
     #[resource] password: &mut PasswordInput,
     #[resource] next_state: &mut NextState,
 ) {
-
     let key_ev = match event {
         Event::Key(k) => k,
         _ => return,
     };
 
     match key_ev {
-        KeyEvent {code: KeyCode::Tab, .. } => {
-            menu_selection.next();
+        KeyEvent {
+            code: KeyCode::Tab, ..
+        } => {
+            // Choose next input
         }
-    //     KeyEvent {code: KeyCode::Down, .. } => {
-    //         menu_selection.prev();
-    //     }
-        KeyEvent {code: KeyCode::Enter, .. } => {
+        KeyEvent {
+            code: KeyCode::Enter,
+            ..
+        } => {
             *next_state = Some(Transition::Pop);
         }
-        _ => return,
+        _ => {}
+    }
+
+    if username.0.focus {
+        username.0.event(*event);
+    } else if password.0.focus {
+        password.0.event(*event);
     }
 }
 
 #[system]
-fn render(
+fn draw_nonsense(
     #[resource] viewport: &mut SignInViewport,
-    #[resource] renderer: &mut Rend,
+    #[resource] username: &mut UsernameInput,
+    #[resource] password: &mut PasswordInput,
 ) {
+    viewport.0.draw_widget(
+        &Border::new("╔═╗║╝═╚║".to_string(), None, None),
+        ScreenPos::zero(),
+    );
+
+    let x = viewport.0.size.width / 2 - 7;
+    let y = viewport.0.size.height / 2 - 1;
+    viewport.0.draw_widget(&username.0, ScreenPos::new(x, y));
+
+    let x = viewport.0.size.width / 2 - 7;
+    let y = viewport.0.size.height / 2 + 1;
+    viewport.0.draw_widget(&password.0, ScreenPos::new(x, y));
+}
+
+#[system]
+fn render(#[resource] viewport: &mut SignInViewport, #[resource] renderer: &mut Rend) {
     renderer.render(&mut viewport.0);
 }

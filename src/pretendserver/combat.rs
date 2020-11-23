@@ -1,5 +1,3 @@
-use std::thread;
-
 use legion::systems::Builder;
 use legion::world::SubWorld;
 use legion::{system, Entity, IntoQuery, World};
