@@ -25,6 +25,11 @@ impl TextField {
         }
     }
 
+    pub fn unfocus(&mut self) {
+        self.focus = false;
+        self.cursor = self.text.chars().count();
+    }
+
     pub fn event(&mut self, event: Event) {
         if !self.focus {
             return;
@@ -57,9 +62,7 @@ impl TextField {
             }
             KeyCode::Char(c) => {
                 match self.max_length {
-                    Some(max_len) if max_len <= self.text.chars().count() => {
-                        return
-                    }
+                    Some(max_len) if max_len <= self.text.chars().count() => return,
                     _ => {}
                 }
 
@@ -78,35 +81,32 @@ impl Widget for TextField {
             .chars()
             .enumerate()
             .map(|(x, c)| if self.password { (x, '*') } else { (x, c) })
-            .map(|(x, c)| {
-                let (fg, bg) = if self.cursor == x {
-                    let bg = match (self.color, self.focus) {
-                        (_, false) => None,
-                        (Some(c), true) => Some(c),
-                        _ => Some(Color::White),
-                    };
-
-                    (Some(Color::Black), bg)
-                } else {
-                    (self.color, None)
-                };
-                Pixel::new(c, ScreenPos::new(x as u16, 0), fg, bg)
-            })
+            .map(|(x, mut c)| Pixel::new(c, ScreenPos::new(x as u16, 0), self.color, None))
             .collect::<Vec<Pixel>>();
-
 
         if !self.focus {
             return pixels;
         }
 
-        if self.cursor == self.text.len() {
-            pixels.push(Pixel::new(
-                ' ',
-                ScreenPos::new(self.cursor as u16, 0),
-                Some(Color::Black),
-                Some(self.color.unwrap_or(Color::White)),
-            ))
-        }
+        // Get char under cursor
+        let c = match self.password {
+            true => self
+                .text
+                .chars()
+                .nth(self.cursor)
+                .map(|_| '*')
+                .unwrap_or(' '),
+            false => self.text.chars().nth(self.cursor).unwrap_or(' '),
+        };
+
+        // Draw cursor
+        pixels.push(Pixel::new(
+            c,
+            ScreenPos::new(self.cursor as u16, 0),
+            Some(Color::Black),
+            Some(self.color.unwrap_or(Color::White)),
+        ));
+
         pixels
     }
 }

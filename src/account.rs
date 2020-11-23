@@ -66,10 +66,10 @@ fn input_fields(
             code: KeyCode::Tab, ..
         } => {
             if username.0.focus {
-                username.0.focus = false;
+                username.0.unfocus();
                 password.0.focus = true;
             } else if password.0.focus {
-                password.0.focus = false;
+                password.0.unfocus();
                 username.0.focus = true;
             }
         }
